@@ -10,8 +10,8 @@ public class Main {
     public static void main(String[] args) {
         // DB credentials
         String url = "jdbc:mysql://localhost:3306/northwind";
-        String username = "root";           // Replace with your username
-        String password = "Yearup";  // Replace with your password
+        String username = "root";
+        String password = "Yearup";
 
         try {
             // Load MySQL JDBC Driver
@@ -21,13 +21,22 @@ public class Main {
             Connection conn = DriverManager.getConnection(url, username, password);
             Statement stmt = conn.createStatement();
 
-            // Execute query
-            String query = "SELECT ProductName FROM products";
+            // Query for full product info
+            String query = "SELECT ProductID, ProductName, UnitPrice, UnitsInStock FROM products";
             ResultSet rs = stmt.executeQuery(query);
 
-            // Display product names
+            // Display each product in stacked format
             while (rs.next()) {
-                System.out.println(rs.getString("ProductName"));
+                int id = rs.getInt("ProductID");
+                String name = rs.getString("ProductName");
+                double price = rs.getDouble("UnitPrice");
+                int stock = rs.getInt("UnitsInStock");
+
+                System.out.println("Product Id: " + id);
+                System.out.println("Name: " + name);
+                System.out.printf("Price: %.2f\n", price);
+                System.out.println("Stock: " + stock);
+                System.out.println("-----------------------------");
             }
 
             // Close connection
