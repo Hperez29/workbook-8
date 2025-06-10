@@ -1,45 +1,40 @@
 package com.pluralsight;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
-        try (Scanner scanner = new Scanner(System.in)) {
-            Class.forName("com.mysql.cj.jdbc.Driver");
+        DataSource dataSource = NorthwindDataSource.getDataSource();
 
-            String url = "jdbc:mysql://localhost:3306/northwind";
-            String username = "root";
-            String password = "Yearup";
+        try (Scanner scanner = new Scanner(System.in);
+             Connection conn = dataSource.getConnection()) {
 
-            try (Connection conn = DriverManager.getConnection(url, username, password)) {
-                int choice;
-                do {
-                    // Home screen menu
-                    System.out.println("\nWhat do you want to do?");
-                    System.out.println("1) Display all products");
-                    System.out.println("2) Display all customers");
-                    System.out.println("3) Display all categories");
-                    System.out.println("0) Exit");
-                    System.out.print("Select an option: ");
-                    choice = Integer.parseInt(scanner.nextLine());
+            int choice;
+            do {
+                System.out.println("\nWhat do you want to do?");
+                System.out.println("1) Display all products");
+                System.out.println("2) Display all customers");
+                System.out.println("3) Display all categories");
+                System.out.println("0) Exit");
+                System.out.print("Select an option: ");
+                choice = Integer.parseInt(scanner.nextLine());
 
-                    switch (choice) {
-                        case 1 -> displayProducts(conn);
-                        case 2 -> displayCustomers(conn);
-                        case 3 -> displayCategoriesAndProducts(conn, scanner);
-                        case 0 -> System.out.println("Goodbye!");
-                        default -> System.out.println("Invalid option. Try again.");
-                    }
-                } while (choice != 0);
+                switch (choice) {
+                    case 1 -> displayProducts(conn);
+                    case 2 -> displayCustomers(conn);
+                    case 3 -> displayCategoriesAndProducts(conn, scanner);
+                    case 0 -> System.out.println("Goodbye!");
+                    default -> System.out.println("Invalid option. Try again.");
+                }
+            } while (choice != 0);
 
-            } catch (SQLException e) {
-                System.err.println("Database error.");
-                e.printStackTrace();
-            }
-
-        } catch (ClassNotFoundException e) {
-            System.err.println("MySQL JDBC driver not found.");
+        } catch (SQLException e) {
+            System.err.println("Database error.");
+            e.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("Startup error.");
             e.printStackTrace();
         }
     }
@@ -90,7 +85,6 @@ public class Main {
     }
 
     private static void displayCategoriesAndProducts(Connection conn, Scanner scanner) {
-        // Step 1: Display categories
         String categoryQuery = "SELECT CategoryID, CategoryName FROM categories ORDER BY CategoryID";
 
         try (Statement stmt = conn.createStatement();
@@ -103,11 +97,9 @@ public class Main {
                 System.out.println("-----------------------------");
             }
 
-            // Step 2: Ask user for category ID
             System.out.print("Enter a Category ID to view its products: ");
             int selectedId = Integer.parseInt(scanner.nextLine());
 
-            // Step 3: Display products from selected category
             String productQuery = """
                 SELECT ProductID, ProductName, UnitPrice, UnitsInStock
                 FROM products
@@ -118,17 +110,16 @@ public class Main {
             try (PreparedStatement pstmt = conn.prepareStatement(productQuery)) {
                 pstmt.setInt(1, selectedId);
                 try (ResultSet prodRs = pstmt.executeQuery()) {
-                    boolean hasResults = false;
+                    boolean found = false;
                     while (prodRs.next()) {
-                        hasResults = true;
+                        found = true;
                         System.out.println("Product Id: " + prodRs.getInt("ProductID"));
                         System.out.println("Name: " + prodRs.getString("ProductName"));
                         System.out.printf("Price: %.2f\n", prodRs.getDouble("UnitPrice"));
                         System.out.println("Stock: " + prodRs.getInt("UnitsInStock"));
                         System.out.println("-----------------------------");
                     }
-
-                    if (!hasResults) {
+                    if (!found) {
                         System.out.println("No products found for category ID: " + selectedId);
                     }
                 }
