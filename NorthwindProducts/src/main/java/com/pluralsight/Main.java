@@ -5,63 +5,48 @@ import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
-        Connection conn = null;
-        Scanner scanner = new Scanner(System.in);
-
-        try {
-            // Load JDBC driver
+        try (Scanner scanner = new Scanner(System.in)) {
             Class.forName("com.mysql.cj.jdbc.Driver");
 
-            // Connect to DB
             String url = "jdbc:mysql://localhost:3306/northwind";
             String username = "root";
             String password = "Yearup";
-            conn = DriverManager.getConnection(url, username, password);
 
-            int choice;
-            do {
-                // Show menu
-                System.out.println("\nWhat do you want to do?");
-                System.out.println("1) Display all products");
-                System.out.println("2) Display all customers");
-                System.out.println("0) Exit");
-                System.out.print("Select an option: ");
-                choice = scanner.nextInt();
-                scanner.nextLine(); // consume newline
+            try (Connection conn = DriverManager.getConnection(url, username, password)) {
+                int choice;
+                do {
+                    // Home screen menu
+                    System.out.println("\nWhat do you want to do?");
+                    System.out.println("1) Display all products");
+                    System.out.println("2) Display all customers");
+                    System.out.println("3) Display all categories");
+                    System.out.println("0) Exit");
+                    System.out.print("Select an option: ");
+                    choice = Integer.parseInt(scanner.nextLine());
 
-                switch (choice) {
-                    case 1:
-                        displayProducts(conn);
-                        break;
-                    case 2:
-                        displayCustomers(conn);
-                        break;
-                    case 0:
-                        System.out.println("Goodbye!");
-                        break;
-                    default:
-                        System.out.println("Invalid option. Try again.");
-                }
-            } while (choice != 0);
+                    switch (choice) {
+                        case 1 -> displayProducts(conn);
+                        case 2 -> displayCustomers(conn);
+                        case 3 -> displayCategoriesAndProducts(conn, scanner);
+                        case 0 -> System.out.println("Goodbye!");
+                        default -> System.out.println("Invalid option. Try again.");
+                    }
+                } while (choice != 0);
+
+            } catch (SQLException e) {
+                System.err.println("Database error.");
+                e.printStackTrace();
+            }
 
         } catch (ClassNotFoundException e) {
             System.err.println("MySQL JDBC driver not found.");
             e.printStackTrace();
-        } catch (SQLException e) {
-            System.err.println("Database error.");
-            e.printStackTrace();
-        } finally {
-            try {
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                System.err.println("Failed to close the connection.");
-            }
         }
     }
 
-    // Method to display products (stacked layout)
     private static void displayProducts(Connection conn) {
         String query = "SELECT ProductID, ProductName, UnitPrice, UnitsInStock FROM products";
+
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(query)) {
 
@@ -79,13 +64,12 @@ public class Main {
         }
     }
 
-    // Method to display customers
     private static void displayCustomers(Connection conn) {
         String query = """
-            SELECT ContactName, CompanyName, City, Country, Phone
-            FROM customers
-            ORDER BY Country, CompanyName
-            """;
+                SELECT ContactName, CompanyName, City, Country, Phone
+                FROM customers
+                ORDER BY Country, CompanyName
+                """;
 
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(query)) {
@@ -101,6 +85,57 @@ public class Main {
 
         } catch (SQLException e) {
             System.err.println("Failed to retrieve customers.");
+            e.printStackTrace();
+        }
+    }
+
+    private static void displayCategoriesAndProducts(Connection conn, Scanner scanner) {
+        // Step 1: Display categories
+        String categoryQuery = "SELECT CategoryID, CategoryName FROM categories ORDER BY CategoryID";
+
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(categoryQuery)) {
+
+            System.out.println("\nAvailable Categories:");
+            while (rs.next()) {
+                System.out.println("Category ID: " + rs.getInt("CategoryID"));
+                System.out.println("Name: " + rs.getString("CategoryName"));
+                System.out.println("-----------------------------");
+            }
+
+            // Step 2: Ask user for category ID
+            System.out.print("Enter a Category ID to view its products: ");
+            int selectedId = Integer.parseInt(scanner.nextLine());
+
+            // Step 3: Display products from selected category
+            String productQuery = """
+                SELECT ProductID, ProductName, UnitPrice, UnitsInStock
+                FROM products
+                WHERE CategoryID = ?
+                ORDER BY ProductName
+                """;
+
+            try (PreparedStatement pstmt = conn.prepareStatement(productQuery)) {
+                pstmt.setInt(1, selectedId);
+                try (ResultSet prodRs = pstmt.executeQuery()) {
+                    boolean hasResults = false;
+                    while (prodRs.next()) {
+                        hasResults = true;
+                        System.out.println("Product Id: " + prodRs.getInt("ProductID"));
+                        System.out.println("Name: " + prodRs.getString("ProductName"));
+                        System.out.printf("Price: %.2f\n", prodRs.getDouble("UnitPrice"));
+                        System.out.println("Stock: " + prodRs.getInt("UnitsInStock"));
+                        System.out.println("-----------------------------");
+                    }
+
+                    if (!hasResults) {
+                        System.out.println("No products found for category ID: " + selectedId);
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to retrieve categories or products.");
             e.printStackTrace();
         }
     }
