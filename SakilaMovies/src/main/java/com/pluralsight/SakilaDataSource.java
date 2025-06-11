@@ -12,7 +12,7 @@ public class SakilaDataSource {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:mysql://localhost:3306/sakila");
         config.setUsername("root");
-        config.setPassword("your_password_here"); // Replace with your actual MySQL password
+        config.setPassword("Yearup"); // Replace with your actual MySQL password
         dataSource = new HikariDataSource(config);
     }
 
